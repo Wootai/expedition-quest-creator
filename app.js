@@ -1,5 +1,3 @@
-'use strict';
-
 const nr = require('newrelic');
 const bodyParser = require('body-parser');
 const express = require('express');
@@ -19,12 +17,11 @@ const app = express();
 // accurately log requests.
 app.use(logging.requestLogger);
 
-app.use(bodyParser.text({ type:'*/*', extended: true, limit: '5mb' }));
-// TODO: */* overrides all other body parsers. Eventually we'll want text to be the default
-// but allow for urlencoding and json parsing too, which will require extensive QC + app testing.
-// Issue / discussion: https://github.com/ExpeditionRPG/expedition-quest-creator/issues/228
-// app.use(bodyParser.json({ type:'json/*' }));
-// app.use(bodyParser.urlencoded({ extended: true, limit: '5mb' })); // for parsing application/x-www-form-urlencoded
+// most specific first
+app.use(bodyParser.json({ type: 'json/*' }));
+app.use(bodyParser.json({ type: '*/json' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '5mb' })); // for parsing application/x-www-form-urlencoded
+app.use(bodyParser.text({ type: '*/*' }));
 
 app.disable('etag');
 
@@ -125,14 +122,13 @@ if (module === require.main) {
     }
 
     // Start the server
-    var server = new WebpackDevServer(compiler, conf);
-    server.listen(port2, "localhost", function() {});
-    console.log("Webpack listening on "+port2);
+    const server = new WebpackDevServer(compiler, conf);
+    server.listen(port2, "localhost", () => {});
+    console.log('Webpack listening on %s', port2);
   }
 
-  var server = app.listen(port, function () {
-    var port = server.address().port;
-    console.log('App listening on port %s', port);
+  const server = app.listen(port, () => {
+    console.log('App listening on port %s', server.address().port);
   });
 }
 

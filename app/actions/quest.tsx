@@ -87,14 +87,15 @@ export function newQuest(userid: string, dispatch: any) {
 }
 
 function getPublishedQuestMeta(published_id: string, cb: (meta: QuestType)=>any) {
-  $.post('/quests', JSON.stringify({id: published_id}), function(result: any) {
+  return $.ajax({
+    type: 'POST',
+    url: '/quests',
+    data: JSON.stringify({id: published_id}),
+    contentType: 'application/json',
+  }).done((result: any) => {
     result = JSON.parse(result);
-    if (result.error) {
-      throw new Error(result.error);
-    }
-
     cb(result.quests[0] as QuestType);
-  });
+  }).fail(pushHTTPError);
 }
 
 export function loadQuest(userid: string, dispatch: any, docid?: string) {
