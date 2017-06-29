@@ -1,6 +1,5 @@
 const Cors = require('cors');
 const express = require('express');
-const Braintree = require('braintree');
 const fs = require('fs');
 const Joi = require('joi');
 const Mailchimp = require('mailchimp-api-v3');
@@ -15,15 +14,12 @@ const Mail = require('./mail');
 const oauth2 = require('./lib/oauth2');
 const Quests = require('./models/quests');
 
-if (Config.get('ENABLE_PAYMENT') && Config.get('BRAINTREE_PUBLIC_KEY')) {
-  const braintree = Braintree.connect({
-    environment: Braintree.Environment[Config.get('BRAINTREE_ENVIRONMENT')],
-    merchantId: Config.get('BRAINTREE_MERCHANT_ID'),
-    publicKey: Config.get('BRAINTREE_PUBLIC_KEY'),
-    privateKey: Config.get('BRAINTREE_PRIVATE_KEY'),
-  });
+let Stripe = require('stripe');
+if (Config.get('ENABLE_PAYMENT') && Config.get('STRIPE_PRIVATE_KEY')) {
+  Stripe = Stripe(Config.get('STRIPE_PRIVATE_KEY'));
 } else {
-  console.warn("Braintree config not set up, any payment requests will fail.")
+  Stripe = null;
+  console.warn("** Payments disabled or Stripe config not set up, any payment requests will fail. **");
 }
 
 const mailchimp = (process.env.NODE_ENV !== 'dev') ? new Mailchimp(Config.get('MAILCHIMP_KEY')) : null;
@@ -208,51 +204,73 @@ router.post('/user/subscribe', limitCors, (req, res) => {
 });
 
 
-router.get('/braintree/token', limitCors, (req, res) => {
+router.post('/stripe/checkout', limitCors, (req, res) => {
   if (!Config.get('ENABLE_PAYMENT')) {
     return res.status(500).send();
   }
 
-  braintree.clientToken.generate({}, (err, response) => {
+  const body = JSON.parse(req.body);
+
+  Joi.validate(body, {
+    amount: Joi.number().min(0.5),
+  }, {allowUnknown: true}, (err, body) => {
+
+console.log(err, body);
     if (err) {
-      console.log(err);
-      return res.status(500).send('Error generating payment token.');
+      return res.status(400).send(err.details.message);
     }
-    res.send(response.clientToken);
+    const charge = Stripe.charges.create({
+      amount: body.amount * 100, // charges in smallest whole units, so must convert dollars to pennies
+      currency: 'usd',
+      description: `Category: ${body.productcategory} - ID: ${body.productid}`,
+      metadata: {
+        productcategory: body.productcategory,
+        productid: body.productid,
+        userid: body.userid,
+        useremail: body.useremail,
+      },
+      source: body.token,
+    }, (err, charge) => {
+  console.log(err, charge);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error submitting payment.');
+      }
+      res.send(charge);
+    });
   });
-});
 
 
-router.post('/braintree/checkout', limitCors, (req, res) => {
-  if (!Config.get('ENABLE_PAYMENT')) {
-    return res.status(500).send();
-  }
-
-  req.body = JSON.parse(req.body);
-  braintree.transaction.sale({
-    amount: req.body.amount.toString(),
-    // TODO once we have submerchant accounts, and only if this is a quest and its author has a set-up submerchant account
-    // serviceFeeAmount: (0.3 + 0.23 * req.body.amount).toString(),
-    paymentMethodNonce: req.body.nonce,
-    options: {
-      submitForSettlement: true,
-      storeInVaultOnSuccess: true,
-    },
-    customer: {
-      email: req.body.useremail,
-      id: req.body.userid,
-    },
-    customFields: {
-      productcategory: req.body.productcategory,
-      productid: req.body.productid,
-    }
-  }, (err, result) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).send('Error submitting payment.');
-    }
-    res.send(result);
-  });
+  //         token: stripeToken,
+  //         amount: checkout.amount,
+  //         productcategory: checkout.productcategory,
+  //         productid: checkout.productid,
+  //         userid: user.id,
+  //         useremail: user.email,
+  // braintree.transaction.sale({
+  //   amount: req.body.amount.toString(),
+  //   // TODO once we have submerchant accounts, and only if this is a quest and its author has a set-up submerchant account
+  //   // serviceFeeAmount: (0.3 + 0.23 * req.body.amount).toString(),
+  //   paymentMethodNonce: req.body.nonce,
+  //   options: {
+  //     submitForSettlement: true,
+  //     storeInVaultOnSuccess: true,
+  //   },
+  //   customer: {
+  //     email: req.body.useremail,
+  //     id: req.body.userid,
+  //   },
+  //   customFields: {
+  //     productcategory: req.body.productcategory,
+  //     productid: req.body.productid,
+  //   }
+  // }, (err, result) => {
+  //   if (err) {
+  //     console.log(err);
+  //     return res.status(500).send('Error submitting payment.');
+  //   }
+  //   res.send(result);
+  // });
 });
 
 
