@@ -17,7 +17,7 @@ describe('Regex', () => {
   describe('Op', () => {
     it('TODO');
   });
-  describe('op var', () => {
+  describe('Op var', () => {
     it('TODO');
   });
   describe('Trigger', () => {
