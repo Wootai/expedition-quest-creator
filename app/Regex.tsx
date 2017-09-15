@@ -22,6 +22,13 @@ export default {
 
   // match op elements (single + multiple lines)
   OP: /{{[^}]*}}/gm,
+    
+  // Breakdown:
+  // \*\s*                    Match "@" and any number of spaces (greedy)
+  // (\{\{(.*?)\}\})?         Optionally match "{{some stuff}}"
+  // \s*                      Match any number of spaces (greedy)
+  // (.*)$                    Match until the end of the string.
+  OP_VARIABLE: /^[@]\s*(\{\{(.*)\}\})?\s*(.*)$/,
 
   // Breakdown:
   // \*\*\s*                  Match "**" and any number of spaces (greedy)
