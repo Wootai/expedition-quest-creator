@@ -85,7 +85,7 @@ Each time there is a choice (indicated with the *), indent one additional level.
   If the players need to do something out of character, like roll a die, draw loot,
   or increment health, instruct them to do so via an instruction (indicated with a >).
 
-  > :roll: Roll to see if you sneak past the :bandit:.
+  > [roll] Roll to see if you sneak past the [bandit].
 
   Notice how the :roll: and :bandit: in the instruction gets turned into an icon?
   Check out "help" or the link below for the list of available icons.
